@@ -34,6 +34,8 @@ This allows the original blocked login request/stream to finish.
 Note: the authentication request will often come from a different device:
 when we use a platform on a desktop computer's browser, this request
 will be performed by eid app on the mobile phone.
+This also means that if you run the server in single worker and single thread
+mode, eid app will wait until timeout when sending jwt to `ppauth`.
 
 ## TODO
 * this implementation is not the most resilient, the goal was to:
