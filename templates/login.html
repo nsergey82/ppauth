@@ -1,19 +1,24 @@
 <html>
-    <head>
-        <title>Login</title>
-    </head>
-    <body>
-       <h3>Authenticate with the platform "{{platform}}" using your eid app</h3>
-       {{qr | safe }}
-        <script>
-           const session='{{session}}';
-           console.log(session);
-	   fetch('/ename/' + session).then(res => { res.text().then(data => { 
-				console.log("Authenticated ename " + data); 
+
+<head>
+    <title>Login</title>
+</head>
+
+<body>
+    <h3>Authenticate with the platform "{{platform}}" using your eid app</h3>
+    {{qr | safe }}
+    <script>
+        const session = '{{session}}';
+        console.log(session);
+        fetch('/ename/' + session).then(res => {
+            res.text().then(data => {
+                console.log("Authenticated ename " + data);
                 alert("You have been authenticated as " + data);
-            }) });
-                   
-          
-        </script>
-    </body>
+            })
+        });
+
+
+    </script>
+</body>
+
 </html>

@@ -1,4 +1,5 @@
 """Flask application serving as auth endpoint for w3ds"""
+
 import os
 import uuid
 from multiprocessing import Manager
@@ -12,6 +13,7 @@ from flask_cors import CORS
 manager = Manager()
 # sessions are using mp.Manager().dict which safely locks
 sessions = manager.dict()
+
 
 def _get_state_for_session(sid: str):
     """Returns stored state for session id or None
@@ -39,7 +41,6 @@ def _add_event(sid: str):
     else:
         sessions[sid] = evt
     return evt
-
 
 
 app = Flask(__name__)
@@ -97,6 +98,12 @@ def _get_qr_dict(base: str, platform: str):
     txt = f"w3ds://auth?redirect={base}/ppauth&session={ssn}&platform={platform}"
     qrcode = segno.make(txt)
     return {"qr": qrcode.svg_inline(scale=5), "session": ssn}
+
+
+@app.route("/headless/<platform>")
+def headless(platform):
+    """Return QR code"""
+    return _get_qr_dict(request.base_url, platform)
 
 
 @app.route("/login/<platform>")
