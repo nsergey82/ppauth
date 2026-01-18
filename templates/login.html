@@ -9,8 +9,10 @@
            const session='{{session}}';
            console.log(session);
 	   fetch('/ename/' + session).then(res => { res.text().then(data => { 
-				   console.log("Authenticated ename " + data); }) });
-                   alert("You have been authenticated as " + data);
+				console.log("Authenticated ename " + data); 
+                alert("You have been authenticated as " + data);
+            }) });
+                   
           
         </script>
     </body>
