@@ -114,7 +114,9 @@ def login(platform):
         "login.html", qr=data["qr"], session=data["session"], platform=platform
     )
 
-
+@app.route("/health")
+def health():
+    return "OK", 200
 # test with:
 # gunicorn app:app --bind=0.0.0.0:5000 --workers=4 --log-level debug --preload
 # as long as --preload is used, sessions mp.dict will be shared between procs
