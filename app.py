@@ -14,12 +14,27 @@ manager = Manager()
 # sessions are using mp.Manager().dict which safely locks
 sessions = manager.dict()
 
+# events sequence:
+# we generate a session id and embed it in qr
+# after presenting the QR the client fetches /ename/<sid>
+# at this point an event-to-wait-on is stored in sessions map for sid
+# /ename/<sid> returns a stream -- the generator is blocked on event.wait
+# eventually, eid app talks to /ppauth/
+# we validate eid and set ename in sessions map
+# we signal the event to wake up the waiting generator
+# it yields the ename into /ename stream
+
+# note, in this impl. calling /ename/<sid> can easily block
+# if the <sid> is bogus or real but never scanned by eid app
+# it will, however, time out after 60 seconds
+# upon timeout it will clear the sid, so sessions do not leak
+
 
 def _get_state_for_session(sid: str):
     """Returns stored state for session id or None
     NB: if called before auth finished will return mp.Event"""
-    print(os.getpid(), "getting", sid, "from", sessions)
-    return sessions.get(sid)
+    print(os.getpid(), "getting", sid)
+    return sessions.pop(sid, "!invalid")
 
 
 def _set_state_for_session(sid: str, state):
@@ -30,16 +45,19 @@ def _set_state_for_session(sid: str, state):
         sessions[sid] = state
         evt.set()
     else:
-        sessions[sid] = state
+        # this session is gone or never was
+        print(sid, "is not a valid session")
 
 
 def _add_event(sid: str):
     """Stores a mapping from session id to mp.Event to wait on"""
-    evt = manager.Event()
     if sid in sessions:
-        evt.set()
-    else:
-        sessions[sid] = evt
+        # why would we have it? who knows, maybe you are calling many /enames/<sid>
+        evt = sessions[sid]
+        assert type(evt) is manager.Event
+        return evt
+    evt = manager.Event()
+    sessions[sid] = evt
     return evt
 
 
@@ -83,10 +101,25 @@ def ename(session):
     """Return the ename for this session, when authentication is done"""
 
     def stream():
-        """Can be used with normal request or EventSource"""
+        """Can be used with normal request"""
         event = _add_event(session)
-        event.wait()
-        yield _get_state_for_session(session)
+        success = event.wait(timeout=60)
+        value = _get_state_for_session(session) if success else "!timedout"
+        yield value
+
+    return Response(stream(), mimetype="text/event-stream")
+
+
+@app.route("/ename_s/<session>")
+def ename_s(session):
+    """Return the ename for this session, when authentication is done"""
+
+    def stream():
+        """Can be used with EventSource"""
+        event = _add_event(session)
+        success = event.wait(timeout=60)
+        value = _get_state_for_session(session) if success else "!timedout"
+        yield "data: %s\n\n" % value
 
     return Response(stream(), mimetype="text/event-stream")
 
@@ -114,9 +147,12 @@ def login(platform):
         "login.html", qr=data["qr"], session=data["session"], platform=platform
     )
 
+
 @app.route("/health")
 def health():
     return "OK", 200
+
+
 # test with:
-# gunicorn app:app --bind=0.0.0.0:5000 --workers=4 --log-level debug --preload
+# gunicorn app:app --bind=0.0.0.0:5000 --workers=4 --log-level debug --preload --timeout 100
 # as long as --preload is used, sessions mp.dict will be shared between procs

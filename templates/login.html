@@ -10,13 +10,18 @@
     <script>
         const session = '{{session}}';
         console.log(session);
-        fetch('/ename/' + session).then(res => {
-            res.text().then(data => {
-                console.log("Authenticated ename " + data);
-                alert("You have been authenticated as " + data);
-            })
-        });
-
+        // if you wish to block on fetch use /ename/<session> endpoint instead
+        const evtSource = new EventSource('/ename_s/' + session);
+        evtSource.onmessage = (e) => {
+            const ename = e.data;
+            console.log("Authenticated ename " + ename);
+            alert("You have been authenticated as " + ename);
+            evtSource.close();
+        };
+        evtSource.onerror = (e) => {
+            alert("Failed to fetch an ename");
+            evtSource.close();
+        };
 
     </script>
 </body>
